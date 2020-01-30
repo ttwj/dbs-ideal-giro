@@ -1,0 +1,72 @@
+- Each row to be 1002 bytes except last which is 1000 bytes long
+- ASCII, CRLF
+
+Strip the very last CRLF i guess
+
+One file, one batch, 5000 transactions max
+
+9: 'numeric' (I guess \d??) X: 'alphanumeric' (\w??)
+
+Pad everything with spaces
+
+Standard field name abbrevations:
+- co: company
+- ac: account, account number
+- ref: reference
+- amt: amount
+- ult: ultimate
+- orig: originating, originator
+- recv: receiving, receiver
+
+
+Batch Header Record
+Batch Detail
+Batch Detail
+...
+Batch Trailer
+
+Field name              Regex (out)             Slice (in)  Notes
+
+Batch Header 
+creation_date           \d{8}                   [0:8]       DDMMYYYY
+creation_time           \d{6}                   [8:14]      HHMMSS
+sender_co_id            [A-Z0-9 ]{8}            [14:22]
+value_date              \d{8}                   [22:30]     DDMMYYYY
+orig_ac                 [a-zA-Z0-9 ]{34}        [30:64]     [Hyphens should be excluded. What about underscores?]
+orig_name               [a-zA-Z0-9 ]{140}       [64:204]
+filler                  [ ]{34}                 [204:238]
+batch_id                \d{5}                   [238:243]   Unique with date for every batch sent to the bank. Range is [00001, 89999]
+batch_ref               [a-zA-Z0-9 ]{35}        [243:278]   Optional (as in, can be blank?), some text to identify the batch
+constants               C[ ]{719}01             [278:1000]
+ending                  \x0d\x0a                [1000:1002] (\r\n)
+
+Batch Detail
+payment_type            (20|22|30)              [0:2]
+beneficiary_ref         [a-zA-Z0-9 ]{35}        [2:37]
+recv_bank_bic           [A-Z0-9 ]{35}           [37:72]
+recv_ac                 [a-zA-Z0-9 ]{35}        [72:106]    Same thing with hyphens
+recv_ac_name            [a-zA-Z0-9 ]{140}       [106:246]   Receiving account holders name
+purpose_code            [A-Z ]{4}               [246:250]
+bulk_transfer_currency  SGD                     [250:253]
+amt_in_cents            \d{11}                  [253:264]   Right align, leading zeros (00000011100)
+dda_ref                 [a-zA-Z0-9 ]{35}        [264:299]   Optional, maybe? What's this??
+payment_details         [a-zA-Z0-9 ]{140}       [299:439]   Optional, write anything
+priority_indicator      N                       [439:440]
+ult_orig_name           [a-zA-Z0-9 ]{140}       [440:580]   Optional
+ult_recv_name           [a-zA-Z0-9 ]{140}       [580:720]   Optional
+filler                  [ ]{278}                [720:998]
+record_type             10                      [998:1000]
+ending                  \x0d\x0a                [1000:1002] (\r\n)
+
+Batch Trailer
+total_credit_txn        \d{11}                  [0:11]
+total_credit_amt        \d{18}                  [11:29]
+total_debit_txn         \d{11}                  [29:40]
+total_debit_amt         \d{18}                  [40:58]
+filler                  [ ]{26}                 [58:84]
+ac_hash_total           \d{11}                  [84:95]     Some kind of checksum
+filler                  [ ]{903}                [95:998]
+record_type             20                      [998:1000]
+ending                  \x0d\x0a                [1000:1002] (\r\n)
+
+
